@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 import { analyzeWithGemini } from "./geminiService.js";
 
 const app = express();
@@ -34,14 +33,14 @@ app.post("/api/intake/analyze", async (request, response) => {
 
     if (description.length > 1500) {
       return response.status(400).json({
-        message: "The maintenance description must be under 1,500 characters.",
+        message:
+          "The maintenance description must be under 1,500 characters.",
       });
     }
 
     if (!process.env.GEMINI_API_KEY) {
       return response.status(500).json({
-        message:
-          "Gemini is not configured. Add GEMINI_API_KEY to the root .env file.",
+        message: "Gemini has not been configured.",
       });
     }
 
@@ -51,48 +50,55 @@ app.post("/api/intake/analyze", async (request, response) => {
   } catch (error) {
     console.error("Gemini intake error:", error);
 
-    if (
-      error?.status === 401 ||
-      error?.status === 403 ||
-      String(error?.message).toLowerCase().includes("api key")
-    ) {
-      return response.status(502).json({
-        message:
-          "Gemini rejected the API key. Check the key in your .env file.",
-      });
-    }
-
     if (error?.status === 429) {
       return response.status(429).json({
         message:
-          "Gemini usage limit reached. Wait briefly and try again.",
+          "The analysis limit has been reached. Please try again later.",
       });
     }
 
     return response.status(500).json({
       message:
-        "Gemini could not analyze this request. Please try again.",
+        error instanceof Error
+          ? error.message
+          : "The request could not be analyzed.",
     });
   }
 });
-const currentFile = fileURLToPath(import.meta.url);
-const currentDirectory = path.dirname(currentFile);
-const distDirectory = path.resolve(currentDirectory, "../dist");
+
+/*
+ * Production frontend
+ * Render runs the server from the project root, where Vite creates /dist.
+ */
+const distDirectory = path.resolve(process.cwd(), "dist");
+
+console.log(`Serving frontend from: ${distDirectory}`);
 
 app.use(express.static(distDirectory));
 
+/*
+ * React fallback:
+ * Any non-API GET request receives index.html.
+ */
 app.use((request, response, next) => {
   if (
-    request.method === "GET" &&
-    !request.path.startsWith("/api")
+    request.method !== "GET" ||
+    request.path.startsWith("/api")
   ) {
-    return response.sendFile(
-      path.join(distDirectory, "index.html")
-    );
+    return next();
   }
 
-  next();
+  return response.sendFile(
+    path.join(distDirectory, "index.html"),
+    (error) => {
+      if (error) {
+        console.error("Frontend file error:", error);
+        next(error);
+      }
+    }
+  );
 });
-app.listen(port, () => {
-  console.log(`MaintainIQ API running at http://localhost:${port}`);
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`MaintainIQ running on port ${port}`);
 });
