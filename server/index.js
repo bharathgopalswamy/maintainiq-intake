@@ -1,5 +1,7 @@
 import "dotenv/config";
 import express from "express";
+import path from "path";
+import { fileURLToPath } from "url";
 import { analyzeWithGemini } from "./geminiService.js";
 
 const app = express();
@@ -73,7 +75,24 @@ app.post("/api/intake/analyze", async (request, response) => {
     });
   }
 });
+const currentFile = fileURLToPath(import.meta.url);
+const currentDirectory = path.dirname(currentFile);
+const distDirectory = path.resolve(currentDirectory, "../dist");
 
+app.use(express.static(distDirectory));
+
+app.use((request, response, next) => {
+  if (
+    request.method === "GET" &&
+    !request.path.startsWith("/api")
+  ) {
+    return response.sendFile(
+      path.join(distDirectory, "index.html")
+    );
+  }
+
+  next();
+});
 app.listen(port, () => {
   console.log(`MaintainIQ API running at http://localhost:${port}`);
 });
