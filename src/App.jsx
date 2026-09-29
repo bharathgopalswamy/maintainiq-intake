@@ -24,45 +24,46 @@ function App() {
     setAnalysis(null);
     setCompletedPayload(null);
     setCurrentStep("intake");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <a className="brand" href="/" onClick={(event) => {
-          event.preventDefault();
-          restart();
-        }}>
+        <a
+          className="brand"
+          href="/"
+          onClick={(event) => {
+            event.preventDefault();
+            restart();
+          }}
+        >
           <span className="brand-mark">M</span>
-
           <span>
             <strong>MaintainIQ</strong>
-           <small>Work Request Intake Concept</small>
+            <small>Maintenance Request Management</small>
           </span>
         </a>
-<div className="prototype-badge">
-  Independent workflow concept
-</div>
+
+        <div className="prototype-badge">AI-assisted intake</div>
       </header>
 
       <main>
         <section className="hero">
-         <div>
-  <p className="eyebrow">
-    Exploring a DirectLine workflow enhancement
-  </p>
+          <div>
+            <p className="eyebrow">A simpler way to report maintenance issues</p>
 
-  <h1>
-    From a plain-language report to a review-ready work request.
-  </h1>
+            <h1>
+              From a plain-language report to a review-ready work request.
+            </h1>
 
-  <p className="hero-description">
-    This independent concept explores how an operator’s initial
-    maintenance description could prefill structured fields before
-    the request continues through an existing DirectLine workflow.
-    Every suggested value remains editable and requires human review.
-  </p>
-</div>
+            <p className="hero-description">
+              Describe a maintenance issue in your own words. MaintainIQ
+              suggests structured request details for you to review and edit
+              before preparing the final record.
+            </p>
+          </div>
+
           <div className="progress-card">
             <div
               className={`progress-item ${
@@ -71,60 +72,43 @@ function App() {
             >
               <span>1</span>
               <div>
-                <strong>Describe</strong>
-                <small>Natural-language request</small>
+                <strong>Report</strong>
+                <small>Describe the issue naturally</small>
               </div>
             </div>
 
-           <div
-  className={`progress-item ${
-    currentStep === "intake" ? "active" : "complete"
-  }`}
->
-  <span>1</span>
+            <div
+              className={`progress-item ${
+                currentStep === "review"
+                  ? "active"
+                  : currentStep === "complete"
+                    ? "complete"
+                    : ""
+              }`}
+            >
+              <span>2</span>
+              <div>
+                <strong>Review</strong>
+                <small>Verify the suggested fields</small>
+              </div>
+            </div>
 
-  <div>
-    <strong>Report</strong>
-    <small>Describe the issue naturally</small>
-  </div>
-</div>
-
-<div
-  className={`progress-item ${
-    currentStep === "review"
-      ? "active"
-      : currentStep === "complete"
-      ? "complete"
-      : ""
-  }`}
->
-  <span>2</span>
-
-  <div>
-    <strong>Review</strong>
-    <small>Verify the suggested fields</small>
-  </div>
-</div>
-
-<div
-  className={`progress-item ${
-    currentStep === "complete" ? "active" : ""
-  }`}
->
-  <span>3</span>
-
-  <div>
-    <strong>Prepare</strong>
-    <small>Create a structured record</small>
-  </div>
-</div>
+            <div
+              className={`progress-item ${
+                currentStep === "complete" ? "active" : ""
+              }`}
+            >
+              <span>3</span>
+              <div>
+                <strong>Prepare</strong>
+                <small>Create a structured record</small>
+              </div>
+            </div>
           </div>
         </section>
 
         {currentStep === "intake" && (
-          <WorkRequestIntake
-            onAnalysisComplete={handleAnalysisComplete}
-          />
+          <WorkRequestIntake onAnalysisComplete={handleAnalysisComplete} />
         )}
 
         {currentStep === "review" && analysis && (
@@ -141,16 +125,10 @@ function App() {
             onCreateAnother={restart}
           />
         )}
-
-      
       </main>
 
       <footer>
-        <footer>
-  Independent concept created to explore a potential enhancement to
-  existing DirectLine workflows. Uses fictional data and is not
-  connected to or endorsed by Megamation.
-</footer>
+        MaintainIQ · AI-assisted maintenance request intake
       </footer>
     </div>
   );
