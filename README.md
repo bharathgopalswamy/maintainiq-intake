@@ -8,6 +8,18 @@ The application uses Gemini to extract relevant information, applies determinist
 
 > This is an independent portfolio project. It is not affiliated with, endorsed by or connected to Megamation or DirectLine.
 
+## Screenshots
+
+| 1. Plain-language report | 2. Human review |
+|---|---|
+| ![Intake screen](docs/screenshots/01-intake.png) | ![Review screen with safety flag and edited field](docs/screenshots/02-review.png) |
+
+| 3. Verified record with JSON/CSV export | Mobile |
+|---|---|
+| ![Verified record and export buttons](docs/screenshots/03-verified-export.png) | ![Intake on a phone-sized screen](docs/screenshots/04-mobile-intake.png) |
+
+Screenshots were captured from the production build with the Gemini call replaced by a fixed, fictional response.
+
 ## Project objective
 
 Maintenance issues may initially be communicated through speech, phone calls, email, mobile messages or unstructured descriptions.
@@ -43,7 +55,7 @@ It does not attempt to replace a CMMS, maintenance planner or existing work-orde
 6. Deterministic safety rules independently inspect the original report.
 7. The application displays the prepared fields for human review.
 8. The reviewer can correct or complete the information.
-9. After confirmation, the application produces a structured JSON record.
+9. After confirmation, the application produces a structured record that can be copied or downloaded as JSON or CSV.
 
 ```text
 Plain-language report
@@ -57,6 +69,8 @@ Deterministic safety checks
 Human review and correction
         ↓
 Structured work-request payload
+        ↓
+JSON / CSV export
 ```
 
 ## Features
@@ -110,9 +124,17 @@ The backend also uses deterministic rules to detect terms related to:
 
 When a possible safety concern is detected, the record is marked for urgent human review.
 
-### Structured output
+### Structured output and export
 
 After verification, the application prepares a JSON payload that demonstrates how the information could eventually be mapped to an approved CMMS API or configured workflow.
+
+The verified record can be:
+
+- **Copied as JSON** (with a confirmation message, or a fallback message if the browser blocks clipboard access)
+- **Downloaded as JSON** — `WR-xxxxxxxx.json`, for an API-style integration
+- **Downloaded as CSV** — `WR-xxxxxxxx.csv`, one header row and one data row (17 columns), for a spreadsheet or a CMMS bulk-import screen
+
+The CSV follows RFC 4180 quoting (commas, quotes and line breaks are escaped) and protects against spreadsheet formula injection by prefixing cells that start with `=`, `+`, `-` or `@`. Files are generated in the browser; nothing is stored on a server.
 
 No real CMMS record is created by this prototype.
 
@@ -155,6 +177,7 @@ Students are using the room until 3 p.m.
 - JSX
 - Vite
 - CSS
+- Vitest, React Testing Library
 
 ### Backend
 
@@ -170,6 +193,8 @@ Students are using the room until 3 p.m.
 - Render for the React production build and Express API
 
 ## Architecture
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the component diagram, data model and key design decisions.
 
 ```text
 Browser
@@ -188,7 +213,12 @@ Browser
 ```text
 maintainiq-intake/
 ├── .github/workflows/ci.yml     # Lint, test, build and Docker build on every push/PR
+├── docs/
+│   ├── ARCHITECTURE.md
+│   └── screenshots/
 ├── public/
+├── shared/
+│   └── workRequestOptions.js    # Allowed categories, priorities and skills (server + browser)
 ├── server/
 │   ├── __tests__/               # Vitest + Supertest tests
 │   ├── app.js                   # Express app (routes), created without listening
@@ -204,6 +234,10 @@ maintainiq-intake/
 │   │   └── WorkRequestSuccess.jsx
 │   ├── services/
 │   │   └── intakeService.js
+│   ├── utils/
+│   │   └── exportWorkRequest.js # JSON/CSV export
+│   ├── __tests__/               # React Testing Library + export tests
+│   ├── test/                    # Test setup and fictional fixtures
 │   ├── App.jsx
 │   ├── index.css
 │   └── main.jsx
@@ -214,8 +248,6 @@ maintainiq-intake/
 ├── vitest.config.js
 └── vite.config.js
 ```
-
-The exact component locations may differ slightly depending on the local folder organization.
 
 ## Local setup
 
@@ -366,7 +398,7 @@ Previews the Vite build without the production Express API.
 npm test
 ```
 
-Runs the server test suite (Vitest + Supertest). The tests replace the Gemini call with a fake, so no API key or network access is needed.
+Runs both test projects with Vitest: the server suite (Supertest, Node) and the client suite (React Testing Library, jsdom). The tests replace the Gemini call and `fetch` with fakes, so no API key or network access is needed.
 
 ```bash
 npm run lint
@@ -376,6 +408,8 @@ Runs ESLint on the frontend and server code.
 
 ## Testing
 
+56 automated tests in two Vitest projects.
+
 The server tests cover:
 
 - Input validation (missing, non-text, too short and too long descriptions)
@@ -383,6 +417,14 @@ The server tests cover:
 - Parsing of model output wrapped in Markdown fences or extra text
 - Schema validation of the structured work request
 - API behaviour for success, missing configuration (503), rate limits (429) and model failures (502 without leaking internal error details)
+
+The client tests cover:
+
+- Intake: short-report validation, example request, successful analysis, friendly error on failure
+- Review: pre-filled values, required-field blocking, mandatory confirmation checkbox, "Edited" tracking, payload contents, and a regression test for the dropdown options
+- Verified record: summary, JSON/CSV downloads, clipboard success and failure messages
+- Export utilities: CSV quoting, list joining, formula-injection protection, safe file names, download mechanics
+- The full intake → review → verified flow with the network call faked
 
 ## Docker
 
@@ -488,6 +530,12 @@ This project was created to demonstrate:
 - Safety-aware business rules
 - Human-in-the-loop application design
 - Understanding of CMMS work-request workflows
+
+## How this was built
+
+The original application (React interface, Express server, Gemini integration, schema and safety rules) was built by Bharath Gopalsamy.
+
+Later improvements — the test suites, CI, Docker, the server refactor and the JSON/CSV export — were implemented with AI assistance (Claude) on feature branches and opened as pull requests that Bharath reviews and merges. Commits made this way carry a `Co-Authored-By: Claude` line, and [DEVLOG.md](DEVLOG.md) explains each change so it can be understood and maintained.
 
 ## Disclaimer
 
