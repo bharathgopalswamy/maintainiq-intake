@@ -826,3 +826,32 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+/* Export actions on the success screen */
+.export-actions {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.export-actions .secondary-button {
+  min-height: 44px;
+  padding: 0 8px;
+  font-size: 0.85rem;
+}
+
+.export-status {
+  min-height: 1.4em;
+  margin: 10px 0;
+  font-size: 0.9rem;
+}
+
+.create-another-button {
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .export-actions {
+    grid-template-columns: 1fr;
+  }
+}
