@@ -35,15 +35,21 @@ const safetyRules = [
   },
 ];
 
-export function detectSafetyFlags(description) {
-  const normalizedDescription = description.toLowerCase();
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
-  return safetyRules
-    .filter((rule) =>
-      rule.keywords.some((keyword) =>
-        normalizedDescription.includes(keyword)
-      )
-    )
+// Whole-word matching: "fire" matches "fire alarm" but not "firewall".
+const compiledRules = safetyRules.map((rule) => ({
+  message: rule.message,
+  patterns: rule.keywords.map(
+    (keyword) => new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i")
+  ),
+}));
+
+export function detectSafetyFlags(description) {
+  return compiledRules
+    .filter((rule) => rule.patterns.some((pattern) => pattern.test(description)))
     .map((rule) => rule.message);
 }
 

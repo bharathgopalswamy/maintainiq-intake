@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-const confidenceValue = z.number().min(0).max(1);
 export const workRequestSchema = z.object({
   requestTitle: z.string(),
   location: z.string(),
