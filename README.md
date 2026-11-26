@@ -1,5 +1,7 @@
 # CMMS Work Request Intake Concept
 
+[![CI](https://github.com/bharathgopalswamy/maintainiq-intake/actions/workflows/ci.yml/badge.svg)](https://github.com/bharathgopalswamy/maintainiq-intake/actions/workflows/ci.yml)
+
 An independent proof-of-concept that explores how a plain-language maintenance report could be converted into structured work-request fields before continuing through an existing CMMS workflow.
 
 The application uses Gemini to extract relevant information, applies deterministic safety checks, validates the resulting structure and requires a person to review the information before preparing the final record.
@@ -185,9 +187,13 @@ Browser
 
 ```text
 maintainiq-intake/
+├── .github/workflows/ci.yml     # Lint, test, build and Docker build on every push/PR
 ├── public/
 ├── server/
-│   ├── index.js
+│   ├── __tests__/               # Vitest + Supertest tests
+│   ├── app.js                   # Express app (routes), created without listening
+│   ├── index.js                 # Starts the server
+│   ├── validation.js            # Input checks before calling the AI model
 │   ├── geminiService.js
 │   ├── safetyRules.js
 │   └── workRequestSchema.js
@@ -201,11 +207,11 @@ maintainiq-intake/
 │   ├── App.jsx
 │   ├── index.css
 │   └── main.jsx
-├── .env
-├── .gitignore
+├── Dockerfile
+├── DEVLOG.md
 ├── index.html
 ├── package.json
-├── package-lock.json
+├── vitest.config.js
 └── vite.config.js
 ```
 
@@ -356,6 +362,37 @@ npm run preview
 
 Previews the Vite build without the production Express API.
 
+```bash
+npm test
+```
+
+Runs the server test suite (Vitest + Supertest). The tests replace the Gemini call with a fake, so no API key or network access is needed.
+
+```bash
+npm run lint
+```
+
+Runs ESLint on the frontend and server code.
+
+## Testing
+
+The server tests cover:
+
+- Input validation (missing, non-text, too short and too long descriptions)
+- Deterministic safety rules, including whole-word matching so `firewall` is not treated as a fire hazard
+- Parsing of model output wrapped in Markdown fences or extra text
+- Schema validation of the structured work request
+- API behaviour for success, missing configuration (503), rate limits (429) and model failures (502 without leaking internal error details)
+
+## Docker
+
+```bash
+docker build -t maintainiq-intake .
+docker run -p 3001:3001 -e GEMINI_API_KEY=your_key maintainiq-intake
+```
+
+The image uses a two-stage build: the first stage compiles the React app, the second contains only production dependencies, the server and the built files, and runs as a non-root user.
+
 ## Render deployment
 
 Create a Render Web Service connected to the GitHub repository.
@@ -393,6 +430,8 @@ The prototype includes several controls:
 - Unknown information should remain blank instead of being invented.
 - Safety language is checked separately from Gemini.
 - Human verification is required before preparing the record.
+- Internal error details are logged on the server but never returned to the browser.
+- Automated tests and CI run on every push and pull request.
 
 A production implementation would additionally require:
 
