@@ -1,4 +1,9 @@
 import { useMemo, useState } from "react";
+import {
+  ASSET_CATEGORIES,
+  PRIORITIES,
+  REQUIRED_SKILLS,
+} from "../../shared/workRequestOptions.js";
 
 const editableFields = [
   {
@@ -17,15 +22,7 @@ const editableFields = [
     name: "assetCategory",
     label: "Asset category",
     type: "select",
-    options: [
-      "HVAC",
-      "Electrical",
-      "Plumbing",
-      "Mechanical",
-      "Building",
-      "Vertical Transportation",
-      "General",
-    ],
+    options: ASSET_CATEGORIES,
   },
   {
     name: "asset",
@@ -43,13 +40,7 @@ const editableFields = [
     name: "suggestedPriority",
     label: "Suggested priority",
     type: "select",
-    options: [
-      "Low",
-      "Medium",
-      "High",
-      "Urgent Review",
-      "Planner Review",
-    ],
+    options: PRIORITIES,
   },
   {
     name: "accessRestriction",
@@ -60,14 +51,7 @@ const editableFields = [
     name: "requiredSkill",
     label: "Required skill",
     type: "select",
-    options: [
-      "HVAC Technician",
-      "Electrician",
-      "Plumber",
-      "Mechanical Technician",
-      "Elevator Technician",
-      "General Maintenance Technician",
-    ],
+    options: REQUIRED_SKILLS,
   },
   {
     name: "suggestedDuration",
