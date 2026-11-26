@@ -63,7 +63,7 @@ ${description}
 `;
 }
 
-function parseGeminiJson(responseText) {
+export function parseGeminiJson(responseText) {
   if (!responseText) {
     throw new Error("Gemini returned an empty response.");
   }
