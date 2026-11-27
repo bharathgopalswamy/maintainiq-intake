@@ -96,9 +96,9 @@ function WorkRequestIntake({ onAnalysisComplete }) {
       </div>
 
      <aside className="panel explanation-panel">
-  <p className="eyebrow">Purpose of this concept</p>
+  <p className="eyebrow">How MaintainIQ helps</p>
 
-  <h3>Supporting existing DirectLine work-request entry</h3>
+  <h3>Faster, more complete maintenance requests</h3>
 
   <ol className="feature-steps">
     <li>
@@ -138,9 +138,9 @@ function WorkRequestIntake({ onAnalysisComplete }) {
       <strong>Designed for workflow handoff</strong>
 
       <p>
-        The final result is a conceptual structured record that
-        could be mapped to an approved DirectLine API or configured
-        workflow.
+        The final result is a structured record that can be
+        exported as JSON or CSV and passed to a maintenance
+        management system or spreadsheet.
       </p>
     </div>
   </div>

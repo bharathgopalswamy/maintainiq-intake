@@ -1,12 +1,10 @@
-# CMMS Work Request Intake Concept
+# MaintainIQ Intake
 
 [![CI](https://github.com/bharathgopalswamy/maintainiq-intake/actions/workflows/ci.yml/badge.svg)](https://github.com/bharathgopalswamy/maintainiq-intake/actions/workflows/ci.yml)
 
-An independent proof-of-concept that explores how a plain-language maintenance report could be converted into structured work-request fields before continuing through an existing CMMS workflow.
+MaintainIQ Intake turns a plain-language maintenance report into structured, reviewed work-request fields that are ready to hand off to a maintenance team, spreadsheet or maintenance management system (CMMS).
 
 The application uses Gemini to extract relevant information, applies deterministic safety checks, validates the resulting structure and requires a person to review the information before preparing the final record.
-
-> This is an independent portfolio project. It is not affiliated with, endorsed by or connected to Megamation or DirectLine.
 
 ## Screenshots
 
@@ -488,30 +486,29 @@ A production implementation would additionally require:
 
 ## Current limitations
 
-This project is a focused proof-of-concept.
+This is a portfolio project.
 
 It currently:
 
 - Uses fictional maintenance data
-- Does not connect to DirectLine
 - Does not create a real CMMS work order
 - Does not store records in a database
 - Does not include user authentication
 - Does not know a facility's real asset hierarchy
 - Does not replace a maintenance planner
-- Has not been evaluated with real CMMS customers
+- Has not been tested with real maintenance teams
 
 The suggested priority is a starting point for human review, not an operational authorization.
 
-## Potential integration direction
+## Possible next steps
 
-If the concept were validated, a future implementation could:
+A fuller version could:
 
 1. Map prepared fields to an approved CMMS data model.
 2. Load customer-specific locations and assets.
 3. Apply configured priority and criticality rules.
-4. Authenticate users through the existing platform.
-5. Send the reviewed payload through an approved API.
+4. Authenticate users and apply role-based access.
+5. Send the reviewed payload to a maintenance system through its API.
 6. Record the original report, prepared values and human changes.
 7. Measure completion time, corrections and request quality.
 
@@ -539,9 +536,7 @@ Later improvements — the test suites, CI, Docker, the server refactor and the 
 
 ## Disclaimer
 
-This is an independent educational and portfolio concept created by Bharath Gopalsamy.
-
-It is not affiliated with, endorsed by or connected to Megamation Systems Inc. or its DirectLine product. All examples use fictional maintenance data. DirectLine and Megamation are referenced only to describe the workflow context that inspired the project.
+This is a personal portfolio project created by Bharath Gopalsamy. All examples use fictional maintenance data.
 
 ## Author
 
