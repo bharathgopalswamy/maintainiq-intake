@@ -1,6 +1,38 @@
+import { useState } from "react";
+import {
+  downloadTextFile,
+  exportFileName,
+  workRequestToCsv,
+  workRequestToJson,
+} from "../utils/exportWorkRequest.js";
+
 function WorkRequestSuccess({ payload, onCreateAnother }) {
+  const [copyStatus, setCopyStatus] = useState("");
+
   const copyPayload = async () => {
-    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+    try {
+      await navigator.clipboard.writeText(workRequestToJson(payload));
+      setCopyStatus("JSON copied to clipboard.");
+    } catch {
+      // Clipboard access can be blocked (no HTTPS, browser permission).
+      setCopyStatus("Copy failed. Use Download JSON instead.");
+    }
+  };
+
+  const downloadJson = () => {
+    downloadTextFile(
+      workRequestToJson(payload),
+      exportFileName(payload, "json"),
+      "application/json"
+    );
+  };
+
+  const downloadCsv = () => {
+    downloadTextFile(
+      workRequestToCsv(payload),
+      exportFileName(payload, "csv"),
+      "text/csv;charset=utf-8"
+    );
   };
 
   return (
@@ -38,7 +70,7 @@ function WorkRequestSuccess({ payload, onCreateAnother }) {
           </div>
         </div>
 
-        <div className="action-row">
+        <div className="export-actions" role="group" aria-label="Export options">
           <button
             type="button"
             className="secondary-button"
@@ -49,12 +81,32 @@ function WorkRequestSuccess({ payload, onCreateAnother }) {
 
           <button
             type="button"
-            className="primary-button"
-            onClick={onCreateAnother}
+            className="secondary-button"
+            onClick={downloadJson}
           >
-            Create another request
+            Download JSON
+          </button>
+
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={downloadCsv}
+          >
+            Download CSV
           </button>
         </div>
+
+        <p className="export-status" role="status">
+          {copyStatus}
+        </p>
+
+        <button
+          type="button"
+          className="primary-button create-another-button"
+          onClick={onCreateAnother}
+        >
+          Create another request
+        </button>
       </div>
 
       <div className="panel payload-panel">
