@@ -5,6 +5,58 @@ Each entry ends with interview practice questions.
 
 ---
 
+## 2026-11-27 — Rate limiting, structured logging and request IDs
+
+### What changed
+
+| Area | Change | Files |
+|---|---|---|
+| Reliability / cost | `POST /api/intake/analyze` is limited per client (default 10 requests/minute, `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`). Over the limit: `429` + `Retry-After`, and Gemini is not called | `server/rateLimiter.js`, `server/app.js` |
+| Reliability | `TRUST_PROXY` setting so the limiter sees the real client IP behind Render's proxy, without letting clients spoof `X-Forwarded-For` when no proxy is configured | `server/app.js` |
+| Observability | Every API request gets an ID (`X-Request-Id` header) and one JSON log line: method, path, status, duration. Failures log the error type and provider status | `server/logger.js`, `server/app.js`, `server/index.js` |
+| Privacy | Logs use an allow-list of fields; report text, bodies, query strings, headers and keys are never written. Error *messages* are no longer logged because they can echo user input | `server/logger.js`, `server/app.js` |
+| Bug fix | Malformed JSON and bodies over 20 kB returned Express's HTML error page; they now return JSON `400` / `413` | `server/app.js` |
+| UX | The intake screen says "Too many requests. Please wait N seconds and try again." instead of a generic failure | `src/services/intakeService.js`, `src/components/WorkRequestIntake.jsx` |
+| Tests | 44 new tests (33 server, 11 client). Total 100 | `server/__tests__/rateLimiter.test.js`, `server/__tests__/logger.test.js`, `server/__tests__/app.test.js`, `src/__tests__/intakeService.test.js`, `src/__tests__/WorkRequestIntake.test.jsx` |
+| Docs | README (feature section, settings table, API status codes, Render setting, screenshot 05), ARCHITECTURE (diagram, lifecycle, decisions) | `README.md`, `docs/` |
+
+### Key concepts
+
+**Why rate-limit this endpoint.** Every analyze call spends paid AI quota. Without a limit, one script could use the whole quota in minutes and the app would stop working for everyone. The limiter runs *before* validation, so even invalid requests are counted.
+
+**Fixed-window algorithm.** For each client IP we store `{ count, resetAt }`. The first request starts a 60-second window; each request adds 1; when `count > max` we reject until `resetAt`. Simple and predictable. Weakness: a client can send `max` requests at the end of one window and `max` at the start of the next (up to 2× in a short burst). A sliding window or token bucket smooths that out.
+
+**429 and Retry-After.** `429 Too Many Requests` is the HTTP status for "slow down". `Retry-After: 45` tells the client how many seconds to wait; the React screen shows that number. `RateLimit-Limit / -Remaining / -Reset` headers let a client see its budget before it is blocked.
+
+**Trust proxy.** Behind Render's proxy, every request's direct IP is the proxy, so all users would share one bucket. `X-Forwarded-For` carries the real IP, but a client can also type that header themselves. So we only trust it when `TRUST_PROXY=1` says a proxy is really there; a test proves a client can't dodge the limit by inventing addresses otherwise.
+
+**In-memory store trade-off.** The counts live in a `Map` inside the Node process. That is fine for one instance, resets on restart, and is cleaned up when it reaches 1,000 clients. With two or more instances each would count separately — the fix would be a shared store like Redis.
+
+**Structured logging.** A log line like `{"level":"warn","event":"request.completed","status":429,...}` can be filtered by field in any log tool (e.g. "all 502s in the last hour"). Plain-text logs can only be searched.
+
+**Request ID (correlation ID).** A unique ID per request, returned to the browser in `X-Request-Id` and written on every log line for that request. If a user reports "it failed", the ID finds exactly what happened. An incoming ID from a load balancer is reused only if it looks safe, so nobody can inject fake log text.
+
+**Log only what you need.** Maintenance reports can mention names, rooms and incidents. Logging an allow-list of fields (not whole objects or error messages) means the log can't leak that data, and a test checks the report text never appears.
+
+**Testing time without waiting.** The limiter takes a `now()` function. Tests pass a fake clock and move it forward 60 seconds instantly instead of sleeping.
+
+### Verified today
+- `npm run lint` passes
+- `npm test`: 100/100 passing (59 server + 41 client)
+- `npm run build` succeeds
+- Production server run locally with `RATE_LIMIT_MAX=2`: requests 1–2 passed the limiter (502 because the local key is fake and the AI call cannot reach the network), request 3 returned `429` with `Retry-After: 60`; health check stayed `200`; malformed JSON returned JSON `400`; stdout showed one JSON line per request with matching request IDs and no report text
+- Screenshot 05 captured from the production build with `RATE_LIMIT_MAX=1`
+
+### Practice questions
+1. Why is the rate limiter placed before input validation, and why isn't the health check limited?
+2. Explain the fixed-window algorithm. What is its burst weakness, and what would you use instead?
+3. What does `TRUST_PROXY` do, and how could a user bypass the limit if it were always on?
+4. What would break if you ran three instances of this server, and how would you fix it?
+5. What is a request ID for, and why does the server refuse some incoming `X-Request-Id` values?
+6. Why does the server log the error's type but not its message?
+
+---
+
 ## 2026-11-26 — JSON/CSV export, frontend tests, architecture doc
 
 ### What changed
