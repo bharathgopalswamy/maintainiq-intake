@@ -16,7 +16,11 @@ The application uses Gemini to extract relevant information, applies determinist
 |---|---|
 | ![Verified record and export buttons](docs/screenshots/03-verified-export.png) | ![Intake on a phone-sized screen](docs/screenshots/04-mobile-intake.png) |
 
-Screenshots were captured from the production build with the Gemini call replaced by a fixed, fictional response.
+| Rate-limit message (429) |
+|---|
+| ![Intake screen telling the user how many seconds to wait](docs/screenshots/05-rate-limit-message.png) |
+
+Screenshots 01–04 were captured from the production build with the Gemini call replaced by a fixed, fictional response. Screenshot 05 was captured from the production server with `RATE_LIMIT_MAX=1` after one earlier request.
 
 ## Project objective
 
@@ -122,6 +126,14 @@ The backend also uses deterministic rules to detect terms related to:
 
 When a possible safety concern is detected, the record is marked for urgent human review.
 
+### Rate limiting and structured logging
+
+- `POST /api/intake/analyze` allows a fixed number of requests per client per time window (default 10 per minute, configurable). Over the limit, the API returns `429 Too Many Requests` with a `Retry-After` header, and Gemini is never called, so no AI quota is used.
+- Every response carries `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` headers.
+- The intake screen tells the user exactly how many seconds to wait.
+- Every API request gets an ID, returned in the `X-Request-Id` header and written to a one-line JSON log entry (method, path, status, duration). If a user reports a problem, the ID finds the matching log lines.
+- Logs only contain allow-listed fields. The maintenance report text, request bodies, headers and API keys are never logged.
+
 ### Structured output and export
 
 After verification, the application prepares a JSON payload that demonstrates how the information could eventually be mapped to an approved CMMS API or configured workflow.
@@ -221,6 +233,8 @@ maintainiq-intake/
 │   ├── __tests__/               # Vitest + Supertest tests
 │   ├── app.js                   # Express app (routes), created without listening
 │   ├── index.js                 # Starts the server
+│   ├── logger.js                # JSON logging + request-ID middleware
+│   ├── rateLimiter.js           # Per-client fixed-window rate limiter
 │   ├── validation.js            # Input checks before calling the AI model
 │   ├── geminiService.js
 │   ├── safetyRules.js
@@ -277,6 +291,14 @@ GEMINI_API_KEY=your_gemini_api_key
 GEMINI_MODEL=gemini-3.6-flash
 PORT=3001
 ```
+
+Optional settings:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `RATE_LIMIT_MAX` | `10` | Analyze requests allowed per client per window |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Window length in milliseconds |
+| `TRUST_PROXY` | unset | Number of reverse proxies in front of the app. Set to `1` on Render or behind a load balancer so each user is limited by their own IP instead of the proxy's |
 
 Do not add quotes around the API key.
 
@@ -354,6 +376,23 @@ Request body:
 
 The endpoint returns schema-validated work-request fields for review.
 
+Responses:
+
+| Status | Meaning |
+|---|---|
+| `200` | Structured fields for review |
+| `400` | Missing, too short, too long or malformed (non-JSON) input |
+| `413` | Request body over 20 kB |
+| `429` | Too many requests from this client (`Retry-After` header and `retryAfterSeconds` in the body), or the Gemini quota is exhausted |
+| `502` | The model call or its output failed; details stay in the server log |
+| `503` | No Gemini API key configured |
+
+Every API response includes an `X-Request-Id` header. Example log line:
+
+```json
+{"time":"2026-11-27T23:47:21.317Z","level":"warn","event":"request.completed","requestId":"6598b8ed-cd72-4c8b-b0d2-366b2347d8b7","method":"POST","path":"/api/intake/analyze","status":429,"durationMs":1}
+```
+
 ## Available commands
 
 ```bash
@@ -406,7 +445,7 @@ Runs ESLint on the frontend and server code.
 
 ## Testing
 
-56 automated tests in two Vitest projects.
+100 automated tests in two Vitest projects (59 server, 41 client).
 
 The server tests cover:
 
@@ -414,11 +453,14 @@ The server tests cover:
 - Deterministic safety rules, including whole-word matching so `firewall` is not treated as a fire hazard
 - Parsing of model output wrapped in Markdown fences or extra text
 - Schema validation of the structured work request
-- API behaviour for success, missing configuration (503), rate limits (429) and model failures (502 without leaking internal error details)
+- API behaviour for success, missing configuration (503), provider rate limits (429) and model failures (502 without leaking internal error details)
+- Rate limiter: limit and remaining headers, 429 with `Retry-After`, window reset, separate clients, memory clean-up, `TRUST_PROXY` handling (a client cannot dodge the limit by inventing an `X-Forwarded-For` address)
+- Logging: JSON format, field allow-list (report text and keys are dropped), request IDs (generated, or reused only if safe), log levels by status, malformed JSON (400) and oversized body (413)
 
 The client tests cover:
 
-- Intake: short-report validation, example request, successful analysis, friendly error on failure
+- Intake: short-report validation, example request, successful analysis, friendly error on failure, "wait N seconds" message on 429
+- API client: error status and `Retry-After` handling
 - Review: pre-filled values, required-field blocking, mandatory confirmation checkbox, "Edited" tracking, payload contents, and a regression test for the dropdown options
 - Verified record: summary, JSON/CSV downloads, clipboard success and failure messages
 - Export utilities: CSV quoting, list joining, formula-injection protection, safe file names, download mechanics
@@ -452,7 +494,10 @@ Add the following environment variables through the Render dashboard:
 ```text
 GEMINI_API_KEY
 GEMINI_MODEL
+TRUST_PROXY=1
 ```
+
+`TRUST_PROXY=1` makes the rate limiter use each visitor's real IP (Render runs the app behind a proxy).
 
 Render supplies the `PORT` environment variable automatically.
 
@@ -470,14 +515,15 @@ The prototype includes several controls:
 - Unknown information should remain blank instead of being invented.
 - Safety language is checked separately from Gemini.
 - Human verification is required before preparing the record.
-- Internal error details are logged on the server but never returned to the browser.
+- The analyze endpoint is rate-limited per client (429 + `Retry-After`).
+- Logs are structured JSON with request IDs; report text and keys are never logged, and internal error details are never returned to the browser.
 - Automated tests and CI run on every push and pull request.
 
 A production implementation would additionally require:
 
 - Authentication
 - Role-based access control
-- Rate limiting
+- A shared rate-limit store (e.g. Redis) if more than one server instance runs
 - Audit logging
 - Secure data storage
 - Privacy and retention policies
@@ -532,7 +578,7 @@ This project was created to demonstrate:
 
 The original application (React interface, Express server, Gemini integration, schema and safety rules) was built by Bharath Gopalsamy.
 
-Later improvements — the test suites, CI, Docker, the server refactor and the JSON/CSV export — were implemented with AI assistance (Claude) on feature branches and opened as pull requests that Bharath reviews and merges. Commits made this way carry a `Co-Authored-By: Claude` line, and [DEVLOG.md](DEVLOG.md) explains each change so it can be understood and maintained.
+Later improvements — the test suites, CI, Docker, the server refactor, the JSON/CSV export, rate limiting and structured logging — were implemented with AI assistance (Claude) on feature branches and opened as pull requests that Bharath reviews and merges. Commits made this way carry a `Co-Authored-By: Claude` line, and [DEVLOG.md](DEVLOG.md) explains each change so it can be understood and maintained.
 
 ## Disclaimer
 

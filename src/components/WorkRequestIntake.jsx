@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { analyzeWorkRequest } from "../services/intakeService.js";
+import {
+  analyzeWorkRequest,
+  messageForError,
+} from "../services/intakeService.js";
 
 const sampleRequest =
   "The conveyor on Packaging Line 2 stopped at 10:15 a.m. Product is backing up near the sealing station, and there appears to be oil beneath the motor. The line supervisor has stopped production and restricted access to the area.";
@@ -23,7 +26,7 @@ function WorkRequestIntake({ onAnalysisComplete }) {
       onAnalysisComplete(result);
     } catch (analysisError) {
       console.error(analysisError);
-      setError("The request could not be analyzed. Please try again.");
+      setError(messageForError(analysisError));
     } finally {
       setIsAnalyzing(false);
     }

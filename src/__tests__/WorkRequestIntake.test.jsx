@@ -71,4 +71,24 @@ describe("WorkRequestIntake", () => {
     expect(screen.getByRole("button", { name: "Prepare fields for review" })).toBeEnabled();
     expect(onAnalysisComplete).not.toHaveBeenCalled();
   });
+
+  it("tells the operator how long to wait when the server rate-limits the request", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.spyOn(intakeService, "analyzeWorkRequest").mockRejectedValue(
+      new intakeService.IntakeRequestError("Too many analysis requests.", {
+        status: 429,
+        retryAfterSeconds: 37,
+      })
+    );
+    render(<WorkRequestIntake onAnalysisComplete={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Use example request" }));
+    await user.click(screen.getByRole("button", { name: "Prepare fields for review" }));
+
+    expect(
+      await screen.findByText("Too many requests. Please wait 37 seconds and try again.")
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Prepare fields for review" })).toBeEnabled();
+  });
 });
